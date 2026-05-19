@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tvc-sim"
+version = "0.1.0"
+description = "Model rocket simulation sandbox."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "altair",
+    "matplotlib==3.10.8",
+    "numpy==2.4.0",
+    "pandas",
+    "streamlit",
+]
+
+[project.scripts]
+tvc-sim = "tvc_sim.sim:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["tvc_sim*", "tvc_sim_ui*"]
+
+[tool.setuptools.package-data]
+tvc_sim = ["data/*.csv"]
