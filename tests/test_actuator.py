@@ -21,7 +21,6 @@ class GimbalActuatorTest(unittest.TestCase):
                 delay=0.0,
                 lag=0.0,
                 deadband=0.0,
-                noise_std=0.0,
             )
         )
 
@@ -38,7 +37,6 @@ class GimbalActuatorTest(unittest.TestCase):
                 delay=0.0,
                 lag=0.0,
                 deadband=0.0,
-                noise_std=0.0,
             )
         )
 
@@ -55,7 +53,6 @@ class GimbalActuatorTest(unittest.TestCase):
                 delay=0.02,
                 lag=0.0,
                 deadband=0.0,
-                noise_std=0.0,
             )
         )
 
@@ -78,7 +75,6 @@ class GimbalActuatorTest(unittest.TestCase):
                 delay=0.0,
                 lag=0.1,
                 deadband=0.0,
-                noise_std=0.0,
             )
         )
 
@@ -99,7 +95,6 @@ class GimbalActuatorTest(unittest.TestCase):
                 delay=0.0,
                 lag=0.0,
                 deadband=math.radians(0.5),
-                noise_std=0.0,
             )
         )
 

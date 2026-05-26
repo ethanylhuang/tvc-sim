@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 
 
-DEFAULT_THRUST_CURVE = "AeroTech_H13ST.csv"
+DEFAULT_THRUST_CURVE = "AeroTech_H100W_DMS.csv"
 
 
 def default_thrust_curve_path():

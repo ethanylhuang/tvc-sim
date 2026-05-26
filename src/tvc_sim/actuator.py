@@ -2,8 +2,6 @@ from collections import deque
 from dataclasses import dataclass
 import math
 
-import numpy as np
-
 
 @dataclass(frozen=True)
 class GimbalActuatorConfig:
@@ -14,8 +12,6 @@ class GimbalActuatorConfig:
     lag: float = 0.03
     deadband: float = math.radians(0.1)
     bias: float = 0.0
-    noise_std: float = math.radians(0.02)
-    random_seed: int = 1
 
 
 @dataclass(frozen=True)
@@ -29,7 +25,6 @@ class GimbalActuatorState:
 class GimbalActuator:
     def __init__(self, config=None):
         self.config = config or GimbalActuatorConfig()
-        self.rng = np.random.default_rng(self.config.random_seed)
         self.state = GimbalActuatorState()
         self._delay_buffer = deque()
         self._delay_steps = None
@@ -39,7 +34,6 @@ class GimbalActuator:
         return max(low, min(value, high))
 
     def reset(self, angle=0.0):
-        self.rng = np.random.default_rng(self.config.random_seed)
         self.state = GimbalActuatorState(
             commanded_angle=angle,
             delayed_command_angle=angle,
@@ -65,7 +59,7 @@ class GimbalActuator:
         target = self._apply_deadband(delayed_command)
         target = self._apply_slew_limit(target, dt)
         position = self._apply_lag(target, dt)
-        output = position + self.config.bias + self._noise()
+        output = position + self.config.bias
         output = self.clamp(output, -max_angle, max_angle)
 
         self.state = GimbalActuatorState(
@@ -117,8 +111,3 @@ class GimbalActuator:
         return self.state.position_angle + alpha * (
             target - self.state.position_angle
         )
-
-    def _noise(self):
-        if self.config.noise_std <= 0.0:
-            return 0.0
-        return self.rng.normal(0.0, self.config.noise_std)

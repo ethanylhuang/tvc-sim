@@ -3,6 +3,7 @@ from dataclasses import dataclass, replace
 import numpy as np
 
 from .actuator import GimbalActuator
+from .aero import AeroConfig, AeroState, compute_aerodynamics
 from .controller import GimbalController
 from .motor import load_thrust_curve
 from .sensors import SensorSuite
@@ -46,17 +47,21 @@ class Rocket:
         moment_inertia,
         initial_angle,
         thrust_curve_filename,
+        aero_config=None,
     ):
         self.max_time = max_time
         self.dt = time_step
         self.params = RocketParams(mass, moment_arm, moment_inertia)
         self.state = RocketState(pitch=initial_angle)
         self.inputs = RocketInputs()
+        self.aero_config = aero_config or AeroConfig(enabled=False)
+        self.aero_state = AeroState()
         self.actuator = GimbalActuator()
         self.controller = GimbalController()
         self.sensors = SensorSuite()
         self.history = []
         self.input_history = []
+        self.aero_history = []
         self.actuator_history = []
         self.sensor_history = []
         self.estimate_history = []
@@ -96,6 +101,7 @@ class Rocket:
 
         self.dynamics(inputs)
         self.input_history.append(replace(self.inputs))
+        self.aero_history.append(self.aero_state)
 
         self.integrate()
         self.state.time += self.dt
@@ -111,31 +117,63 @@ class Rocket:
 
         self.inputs = inputs
 
-        x_thrust = inputs.thrust * np.sin(self.state.pitch)
-        y_thrust = inputs.thrust * np.cos(self.state.pitch)
+        thrust_angle = self.state.pitch + inputs.gimbal_angle
+        x_thrust = inputs.thrust * np.sin(thrust_angle)
+        y_thrust = inputs.thrust * np.cos(thrust_angle)
 
         torque = (
             inputs.thrust
             * np.sin(inputs.gimbal_angle)
             * self.params.moment_arm
         )
+        weight = 9.81 * self.params.mass
+        if (
+            self.state.y <= 0.0
+            and self.state.y_vel <= 0.0
+            and y_thrust <= weight
+        ):
+            self.aero_state = AeroState(wind_x_m_s=self.aero_config.wind_x_m_s)
+        else:
+            self.aero_state = compute_aerodynamics(
+                self.aero_config,
+                self.state.x_vel,
+                self.state.y_vel,
+                self.state.pitch,
+                self.state.pitch_vel,
+            )
 
-        y_net = y_thrust - (9.81 * self.params.mass)
+        x_net = x_thrust + self.aero_state.x_force_n
+        y_net = y_thrust + self.aero_state.y_force_n - weight
+        pitch_torque = torque + self.aero_state.pitch_moment_n_m
 
-        self.state.x_accel = x_thrust / self.params.mass
+        self.state.x_accel = x_net / self.params.mass
         self.state.y_accel = y_net / self.params.mass
-        self.state.pitch_accel = torque / self.params.pitch_moment_inertia
+        self.state.pitch_accel = (
+            pitch_torque / self.params.pitch_moment_inertia
+        )
 
     def integrate(self):
-        self.state.x_vel += self.state.x_accel * self.dt
-        self.state.y_vel += self.state.y_accel * self.dt
-        self.state.pitch_vel += self.state.pitch_accel * self.dt
+        next_x_vel = self.state.x_vel + self.state.x_accel * self.dt
+        next_y_vel = self.state.y_vel + self.state.y_accel * self.dt
+        next_pitch_vel = self.state.pitch_vel + (
+            self.state.pitch_accel * self.dt
+        )
+        next_y = self.state.y + next_y_vel * self.dt
 
-        self.state.y += self.state.y_vel * self.dt
-        if self.state.y <= 0:
-            self.state.y = 0
+        if next_y <= 0.0:
+            if self.state.y > 0.0:
+                self.state.x += next_x_vel * self.dt
+                self.state.pitch += next_pitch_vel * self.dt
+            self.state.y = 0.0
+            self.state.x_vel = 0.0
+            self.state.y_vel = 0.0
+            self.state.pitch_vel = 0.0
             return
 
+        self.state.x_vel = next_x_vel
+        self.state.y_vel = next_y_vel
+        self.state.pitch_vel = next_pitch_vel
+        self.state.y = next_y
         self.state.x += self.state.x_vel * self.dt
         self.state.pitch += self.state.pitch_vel * self.dt
 

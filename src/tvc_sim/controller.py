@@ -9,8 +9,8 @@ class GimbalController:
     enabled: bool = True
     gimbal_angle: float = 0.0
     alpha_cmd: float = 0.0
-    kp: float = 0.1
-    kd: float = 0.01
+    kp: float = 22.25
+    kd: float = 3.124291252531
     max_gimbal_angle: float = 0.1745  # 10 deg
     min_control_thrust: float = 3.0
 
